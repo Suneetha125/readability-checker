@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter Readability Checker</title>
+<style>
+  body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:20px;background:#f7f7f7;color:#222}
+  h1{margin-bottom:8px}.sub{color:#666}
+  textarea{width:100%;height:300px;padding:14px;font-size:16px;box-sizing:border-box;border:1px solid #ccc;border-radius:8px}
+  button{margin:14px 0;padding:11px 18px;border:0;border-radius:7px;background:#222;color:white;cursor:pointer}
+  .card{background:white;padding:18px;border-radius:10px;margin-top:18px}
+  .score{font-size:28px;font-weight:bold}
+  .sentence{padding:10px;margin:8px 0;background:#fff0f0;border-left:4px solid #d33;border-radius:4px}
+  .muted{color:#666}
+</style>
+</head>
+<body>
+<h1>Chapter Readability Checker</h1>
+<p class="sub">Paste a chapter to estimate its readability and find the five hardest sentences.</p>
+
+<textarea id="text" placeholder="Paste your chapter here..."></textarea>
+<br>
+<button onclick="analyze()">Analyze chapter</button>
+
+<div id="results" class="card" style="display:none">
+  <div>Flesch Reading Ease</div>
+  <div class="score" id="score"></div>
+  <p id="level"></p>
+  <h2>Five hardest sentences</h2>
+  <div id="hardest"></div>
+</div>
+
+<script>
+function words(s){ return s.trim().match(/\b[\w'-]+\b/g) || []; }
+
+function sentences(text){
+  return text.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map(s=>s.trim()).filter(Boolean) || [];
+}
+
+function syllables(word){
+  word=word.toLowerCase().replace(/[^a-z]/g,"");
+  if(!word) return 0;
+  if(word.length<=3) return 1;
+  word=word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/,"");
+  word=word.replace(/^y/,"");
+  const m=word.match(/[aeiouy]{1,2}/g);
+  return Math.max(1,m ? m.length : 1);
+}
+
+function analyze(){
+  const text=document.getElementById("text").value.trim();
+  if(!text){alert("Please paste a chapter first.");return;}
+
+  const ss=sentences(text), ws=words(text);
+  if(!ss.length || !ws.length){return;}
+
+  const totalSyllables=ws.reduce((n,w)=>n+syllables(w),0);
+  const score=206.835 - 1.015*(ws.length/ss.length) - 84.6*(totalSyllables/ws.length);
+
+  let level;
+  if(score>=90) level="Very easy";
+  else if(score>=80) level="Easy";
+  else if(score>=70) level="Fairly easy";
+  else if(score>=60) level="Standard";
+  else if(score>=50) level="Fairly difficult";
+  else if(score>=30) level="Difficult";
+  else level="Very difficult";
+
+  const ranked=ss.map(s=>{
+    const sw=words(s);
+    const syl=sw.reduce((n,w)=>n+syllables(w),0);
+    return {s, difficulty:(sw.length/Math.max(1,sw.length))*0 + sw.length + syl*1.5};
+  }).sort((a,b)=>b.difficulty-a.difficulty).slice(0,5);
+
+  document.getElementById("score").textContent=score.toFixed(1);
+  document.getElementById("level").textContent=level;
+  document.getElementById("hardest").innerHTML=ranked.map((x,i)=>
+    `<div class="sentence"><b>${i+1}.</b> ${escapeHtml(x.s)}</div>`).join("");
+  document.getElementById("results").style.display="block";
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+}
+</script>
+</body>
+</html>
